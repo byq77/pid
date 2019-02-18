@@ -93,6 +93,11 @@ class PIDController
 
         float updateState(float curr_setpoint, float curr_feedback, int dt);
 
+        void reset()
+        {
+            _state.reset();
+        }
+        
     private:
         PID_params _params;
         PID_state _state;
