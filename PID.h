@@ -56,7 +56,7 @@ typedef struct PID_state
 
     void reset()
     {
-        int_sum = last_error = last_last_error = 0.0f;
+        int_sum = pidout = last_error = last_last_error = 0.0f;
     }
 }PID_state_t;
 
@@ -91,7 +91,7 @@ class PIDController
             state = _state;
         }
 
-        float updateState(float curr_setpoint, float curr_feedback, int dt);
+        int updateState(const float * curr_setpoint, const float * curr_feedback, float * pidout, uint32_t dt);
 
         void reset()
         {

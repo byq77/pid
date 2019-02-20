@@ -32,40 +32,43 @@ PIDController::PIDController(const PID_params & params)
 : _params(params), _state()
 {}
 
-float PIDController::updateState(float curr_setpoint, float curr_feedback, int dt)
+int PIDController::updateState(const float * curr_setpoint, const float * curr_feedback, float * pidout, uint32_t dt)
 {
-    float curr_error = curr_setpoint - curr_feedback;
+    float curr_error = *curr_setpoint - *curr_feedback;
     
-    if (curr_error >= 0.0f && _params.flags & PID_BIAS_BALANCE)
+    if (curr_error >= 0.0f && (_params.flags & PID_BIAS_BALANCE))
         curr_error *= _params.del_kp;
     else
         curr_error /= _params.del_kp;
 
-    if(curr_error <= _params.error_tolerance && curr_error >= -_params.error_tolerance && _params.flags & PID_ERROR_TOLERANCE)
+    if( (_params.flags & PID_ERROR_TOLERANCE) && (curr_error <= _params.error_tolerance) && (curr_error >= -_params.error_tolerance))
     {
-        _state.reset();
-        return _state.pidout;
+        // _state.reset();
+        return 0;
     }
 
     _state.pidout=0.0f;
 
     // proportional part
-    _state.pidout += _params.scale * _params.kp*curr_error;
+    _state.pidout += (_params.scale * _params.kp*curr_error);
 
     // integral part
-    _state.pidout += _params.scale * _params.ki*_state.int_sum;
+    _state.pidout += (_params.scale * _params.ki*_state.int_sum);
 
     // derivative part
-    if(_state.last_setpoint == curr_setpoint)
+    if(_state.last_setpoint == *curr_setpoint)
     {
         if(_params.flags & PID_AVG_FILTER)
             _state.pidout += _params.scale * _params.kd * (curr_error-_state.last_last_error)/(2*dt);
         else
             _state.pidout += _params.scale * _params.kd * (curr_error-_state.last_error)/dt;
     }
-    _state.last_last_error = _state.last_error; 
-    _state.last_error = curr_error;
-    _state.last_setpoint = curr_setpoint;
+    else
+    {
+        _state.last_setpoint = *curr_setpoint;
+    }
+        _state.last_last_error = _state.last_error; 
+        _state.last_error = curr_error;
 
     float ichange = curr_error;
     if (_params.flags & PID_INT_RATE_LIMIT)
@@ -76,17 +79,18 @@ float PIDController::updateState(float curr_setpoint, float curr_feedback, int d
             ichange = _params.int_rate_limit_low;
     }
 
-    bool top_limit;
 
-    if (_params.flags & PID_OUTPUT_LIMITS &&
-        (top_limit = (_state.pidout >= _params.pidout_limit_high)) ||
-        (_state.pidout <= _params.pidout_limit_low))
+    if (_params.flags & PID_OUTPUT_LIMITS)
     {
-        _state.pidout = (top_limit ? _params.pidout_limit_high : _params.pidout_limit_low);
-        if (_params.flags & PID_INT_SOFT_ANTI_WINDUP)
+        bool limit_high = (_state.pidout >= _params.pidout_limit_high);
+        bool limit_low = (_state.pidout <= _params.pidout_limit_low);
+        _state.pidout = (limit_high ? _params.pidout_limit_high : (limit_low ? _params.pidout_limit_low : _state.pidout));
+        
+        if ((_params.flags & PID_INT_SOFT_ANTI_WINDUP) && (limit_high || limit_low))
             _state.int_sum += _params.anti_windup * ichange * dt;
         else
             _state.int_sum += ichange * dt;
     }
-    return _state.pidout;
+    *pidout = _state.pidout;
+    return 1;
 }
