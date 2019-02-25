@@ -15,7 +15,7 @@ typedef enum PID_flags
     PID_INT_SOFT_ANTI_WINDUP = 0x01, ///< enable soft anti-windup reduction strategy
     PID_INT_RATE_LIMIT = 0x02,       ///< enable integral part limitation
     PID_AVG_FILTER = 0x04,           ///< enable derivative average filter
-    PID_DERIV_RESP_SMOOTING = 0x08,  ///< applay fix for derivative response
+    PID_DERIV_RESP_GLITCHES_FIX = 0x08,  ///< applay fix for derivative response
     PID_END_REG_JOB_SUCCESS = 0x10   ///< reserved
 } PID_flags_t;
 
@@ -65,7 +65,5 @@ class PIDController
     private:
         PID_params_t _params;
         PID_state_t _state;
-        float _in_span;
-        float _out_span;
 };
 #endif /*__PID_H__ */

@@ -11,8 +11,6 @@ PIDController::PIDController()
     : _params(), _state()
 {
     reset();
-    _in_span = _params.in_max - _params.in_min;
-    _out_span = _params.out_max - _params.out_min;
 }
 
 PIDController::~PIDController(){}
@@ -21,8 +19,6 @@ PIDController::PIDController(const PID_params & params)
 : _params(params), _state()
 {
     reset();
-    _in_span = _params.in_max - _params.in_min;
-    _out_span = _params.out_max - _params.out_min;
 }
 
 int PIDController::updateState(const float * curr_setpoint, const float * curr_feedback, float * pidout)
@@ -30,14 +26,11 @@ int PIDController::updateState(const float * curr_setpoint, const float * curr_f
     // Check if inputs are correct
     if(*curr_setpoint > _params.in_max || *curr_setpoint < _params.in_min)
         return 1; //TODO: add return code
-    if(*curr_feedback > _params.in_max || *curr_setpoint < _params.in_min)
+    if(*curr_feedback > _params.in_max || *curr_feedback < _params.in_min)
         return 1; //TODO: add return code (FAILURE)
 
-    // Compute scaled error
-    float scaled_feedback = (*curr_feedback - _params.in_min )/_in_span;
-    float scaled_setpoint = (*curr_setpoint - _params.in_min )/_in_span;
-    float error = scaled_setpoint - scaled_feedback;
-
+    // Compute error
+    float error = *curr_setpoint - *curr_feedback;
     if(_params.flags & PID_END_REG_JOB_SUCCESS)
     {
         //TODO: implement
@@ -50,14 +43,14 @@ int PIDController::updateState(const float * curr_setpoint, const float * curr_f
     
     // Compute dchange (derivative slope)
     float dchange;
-    if(_params.flags & PID_DERIV_RESP_SMOOTING)
+    if(_params.flags & PID_DERIV_RESP_GLITCHES_FIX)
     {
         if(_params.flags & PID_AVG_FILTER)
-            dchange = (scaled_feedback - _state.last_last_error)/2;
+            dchange = (*curr_feedback - _state.last_last_error)/2;
         else
-            dchange = (scaled_feedback - _state.last_error);
+            dchange = (*curr_feedback - _state.last_error);
         _state.last_last_error = _state.last_error; 
-        _state.last_error = scaled_feedback;
+        _state.last_error = *curr_feedback;
     }
     else
     {
@@ -65,6 +58,8 @@ int PIDController::updateState(const float * curr_setpoint, const float * curr_f
             dchange = (error - _state.last_last_error)/2;
         else
             dchange = (error - _state.last_error);
+        _state.last_last_error = _state.last_error; 
+        _state.last_error = error;
     }
 
     // Compute derivative part
@@ -81,7 +76,8 @@ int PIDController::updateState(const float * curr_setpoint, const float * curr_f
     }
 
     // Scale output and applay bias
-    pidout_internal = _params.bias + (pidout_internal * _out_span) + _params.out_min;
+    // pidout_internal = _params.bias + (pidout_internal * _out_span) + _params.out_min;
+    pidout_internal += _params.bias;
 
     bool limit_high = (pidout_internal > _params.out_max);
     bool limit_low = (pidout_internal < _params.out_min);
@@ -101,8 +97,6 @@ int PIDController::updateState(const float * curr_setpoint, const float * curr_f
 void PIDController::updateParams(const PID_params_t &params)
 {
     _params = params;
-    _in_span = _params.in_max - _params.in_min;
-    _out_span = _params.out_max - _params.out_min;
 }
 
 void PIDController::getParams(PID_params_t &params)
