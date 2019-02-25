@@ -7,90 +7,116 @@
  */
 #include "PID.h"
 
-static const PID_params_t default_params = {
-    .flags = 0,
-    .ki = 0,
-    .kp = 1,
-    .kd = 0,
-    .scale = 1,
-    .del_kp = 1,
-    .anti_windup = 0,
-    .int_rate_limit_high = 0, 
-    .int_rate_limit_low = 0,
-    .pidout_limit_high = 0,
-    .pidout_limit_low = 0,
-    .error_tolerance = 0
-};
-
 PIDController::PIDController()
-    : _params(default_params), _state()
-{}
+    : _params(), _state()
+{
+    reset();
+    _in_span = _params.in_max - _params.in_min;
+    _out_span = _params.out_max - _params.out_min;
+}
 
 PIDController::~PIDController(){}
 
 PIDController::PIDController(const PID_params & params)
 : _params(params), _state()
-{}
-
-int PIDController::updateState(const float * curr_setpoint, const float * curr_feedback, float * pidout, uint32_t dt)
 {
-    float curr_error = *curr_setpoint - *curr_feedback;
-    
-    if (curr_error >= 0.0f && (_params.flags & PID_BIAS_BALANCE))
-        curr_error *= _params.del_kp;
-    else
-        curr_error /= _params.del_kp;
+    _in_span = _params.in_max - _params.in_min;
+    _out_span = _params.out_max - _params.out_min;
+}
 
-    if( (_params.flags & PID_ERROR_TOLERANCE) && (curr_error <= _params.error_tolerance) && (curr_error >= -_params.error_tolerance))
+int PIDController::updateState(const float * curr_setpoint, const float * curr_feedback, float * pidout)
+{
+    // Check if inputs are correct
+    if(*curr_setpoint > _params.in_max || *curr_setpoint < _params.in_min)
+        return 1; //TODO: add return code
+    if(*curr_feedback > _params.in_max || *curr_setpoint < _params.in_min)
+        return 1; //TODO: add return code (FAILURE)
+
+    // Compute scaled error
+    float scaled_feedback = (*curr_feedback - _params.in_min )/_in_span;
+    float scaled_setpoint = (*curr_setpoint - _params.in_min )/_in_span;
+    float error = scaled_setpoint - scaled_feedback;
+
+    if(_params.flags & PID_END_REG_JOB_SUCCESS)
     {
-        // _state.reset();
-        return 0;
+        //TODO: implement
+        //TODO: add return code
+        return 1;
     }
 
-    _state.pidout=0.0f;
-
-    // proportional part
-    _state.pidout += (_params.scale * _params.kp*curr_error);
-
-    // integral part
-    _state.pidout += (_params.scale * _params.ki*_state.int_sum);
-
-    // derivative part
-    if(_state.last_setpoint == *curr_setpoint)
+    // Compute proportional and integral part
+    float pidout_internal = _params.kp*error + _params.ki*_state.int_sum;
+    
+    // Compute dchange (derivative slope)
+    float dchange;
+    if(_params.flags & PID_DERIV_RESP_SMOOTING)
     {
         if(_params.flags & PID_AVG_FILTER)
-            _state.pidout += _params.scale * _params.kd * (curr_error-_state.last_last_error)/(2*dt);
+            dchange = (scaled_feedback - _state.last_last_error)/2;
         else
-            _state.pidout += _params.scale * _params.kd * (curr_error-_state.last_error)/dt;
+            dchange = (scaled_feedback - _state.last_error);
+        _state.last_last_error = _state.last_error; 
+        _state.last_error = scaled_feedback;
     }
     else
     {
-        _state.last_setpoint = *curr_setpoint;
+        if(_params.flags & PID_AVG_FILTER)
+            dchange = (error - _state.last_last_error)/2;
+        else
+            dchange = (error - _state.last_error);
     }
-        _state.last_last_error = _state.last_error; 
-        _state.last_error = curr_error;
 
-    float ichange = curr_error;
+    // Compute derivative part
+    pidout_internal += (_params.kd * dchange/_params.dt);
+
+    // Compute ichange and applay integration rate limit
+    float ichange = error;
     if (_params.flags & PID_INT_RATE_LIMIT)
     {
-        if (ichange > _params.int_rate_limit_high)
-            ichange = _params.int_rate_limit_high;
-        else if (ichange < _params.int_rate_limit_low)
-            ichange = _params.int_rate_limit_low;
+        if (ichange > _params.int_rate_limit)
+            ichange = _params.int_rate_limit;
+        else if (ichange < -_params.int_rate_limit)
+            ichange = -_params.int_rate_limit;
     }
 
+    // Scale output and applay bias
+    pidout_internal = _params.bias + (pidout_internal * _out_span) + _params.out_min;
 
-    if (_params.flags & PID_OUTPUT_LIMITS)
-    {
-        bool limit_high = (_state.pidout >= _params.pidout_limit_high);
-        bool limit_low = (_state.pidout <= _params.pidout_limit_low);
-        _state.pidout = (limit_high ? _params.pidout_limit_high : (limit_low ? _params.pidout_limit_low : _state.pidout));
-        
-        if ((_params.flags & PID_INT_SOFT_ANTI_WINDUP) && (limit_high || limit_low))
-            _state.int_sum += _params.anti_windup * ichange * dt;
-        else
-            _state.int_sum += ichange * dt;
-    }
-    *pidout = _state.pidout;
-    return 1;
+    bool limit_high = (pidout_internal > _params.out_max);
+    bool limit_low = (pidout_internal < _params.out_min);
+    
+    if(limit_high || limit_low)
+        pidout_internal = (limit_high ? _params.out_max : _params.out_min);
+
+    if ((_params.flags & PID_INT_SOFT_ANTI_WINDUP) && (limit_high || limit_low))
+        _state.int_sum += _params.anti_windup * ichange * _params.dt;
+    else
+        _state.int_sum += ichange * _params.dt;
+
+    *pidout = pidout_internal;
+    return 0;
+}
+
+void PIDController::updateParams(const PID_params_t &params)
+{
+    _params = params;
+    _in_span = _params.in_max - _params.in_min;
+    _out_span = _params.out_max - _params.out_min;
+}
+
+void PIDController::getParams(PID_params_t &params)
+{
+    params = _params;
+}
+
+void PIDController::getState(PID_state_t &state)
+{
+    state = _state;
+}
+
+void PIDController::reset()
+{
+    _state.int_sum = 0.0f;
+    _state.last_error = 0.0f;
+    _state.last_last_error = 0.0f;
 }
