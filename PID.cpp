@@ -20,6 +20,7 @@ PIDController::~PIDController(){}
 PIDController::PIDController(const PID_params & params)
 : _params(params), _state()
 {
+    reset();
     _in_span = _params.in_max - _params.in_min;
     _out_span = _params.out_max - _params.out_min;
 }
