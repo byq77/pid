@@ -16,23 +16,6 @@
 #define PID_COMPUTATION_SUCCESS     0 ///< computation success - new pid output
 
 /**
- * @brief PID flags.
- *
- * Extend pid functionality:
- * @code{.cpp}
- * PID_params_t params.flags = PID_INT_SOFT_ANTI_WINDUP | PID_INT_RATE_LIMIT;
- * @endcode
- */
-enum PID_flags
-{
-    PID_INT_SOFT_ANTI_WINDUP = 0x01,    ///< enable soft anti-windup reduction strategy
-    PID_INT_RATE_LIMIT = 0x02,          ///< enable integral part limitation
-    PID_AVG_FILTER = 0x04,              ///< enable derivative average filter
-    PID_DERIV_RESP_GLITCHES_FIX = 0x08, ///< applay fix for derivative response
-    PID_END_REG_JOB_SUCCESS = 0x10      ///< reserved
-};
-
-/**
  * @brief PID parameters.
  *
  * All pid params.
@@ -82,6 +65,24 @@ typedef struct PID_state
 class PIDController 
 {
     public:
+
+        /**
+         * @brief PID flags.
+         *
+         * Extend pid functionality:
+         * @code{.cpp}
+         * PID_params_t params.flags = PID_INT_SOFT_ANTI_WINDUP | PID_INT_RATE_LIMIT;
+         * @endcode
+         */
+        enum PID_flags
+        {
+            PID_INT_SOFT_ANTI_WINDUP = 0x01,    ///< enable soft anti-windup reduction strategy
+            PID_INT_RATE_LIMIT = 0x02,          ///< enable integral part limitation
+            PID_AVG_FILTER = 0x04,              ///< enable derivative average filter
+            PID_DERIV_RESP_GLITCHES_FIX = 0x08, ///< applay fix for derivative response
+            PID_END_REG_JOB_SUCCESS = 0x10      ///< reserved
+        };        
+
         /**
          * @brief Create controller with default params.
          */
@@ -105,7 +106,7 @@ class PIDController
         
         /**
          * @brief Get current pid configuration.
-         * @param pid params to update 
+         * @param params pid parameters to update 
          */
         void getParams(PID_params_t & params);
         
