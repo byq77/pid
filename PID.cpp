@@ -7,16 +7,18 @@
  */
 #include "PID.h"
 
+static const PID_params_t DEFAULT_PARAMS; //TODO: add some default params
+
 PIDController::PIDController()
-    : _params(), _state()
+    : _params(DEFAULT_PARAMS), _state()
 {
     reset();
 }
 
 PIDController::~PIDController(){}
 
-PIDController::PIDController(const PID_params & params)
-: _params(params), _state()
+PIDController::PIDController(const PID_params * params)
+: _params(params ? *params : DEFAULT_PARAMS), _state()
 {
     reset();
 }
@@ -93,19 +95,19 @@ int PIDController::updateState(const float * curr_setpoint, const float * curr_f
     return PID_COMPUTATION_SUCCESS;
 }
 
-void PIDController::updateParams(const PID_params_t &params)
+void PIDController::updateParams(const PID_params_t * params)
 {
-    _params = params;
+    _params = *params;
 }
 
-void PIDController::getParams(PID_params_t &params)
+void PIDController::getParams(PID_params_t * params)
 {
-    params = _params;
+    *params = _params;
 }
 
-void PIDController::getState(PID_state_t &state)
+void PIDController::getState(PID_state_t * state)
 {
-    state = _state;
+    *state = _state;
 }
 
 void PIDController::reset()

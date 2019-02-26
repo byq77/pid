@@ -92,7 +92,7 @@ class PIDController
          * @brief Create controller.
          * @param params pid configuration
          */
-        PIDController(const PID_params_t & params);
+        PIDController(const PID_params_t * params);
         
         ~PIDController();
         
@@ -102,20 +102,20 @@ class PIDController
          * It updates all pid parameters.
          * @param params pid configuration
          */
-        void updateParams(const PID_params_t & params);
+        void updateParams(const PID_params_t * params);
         
         /**
          * @brief Get current pid configuration.
          * @param params pid parameters to update 
          */
-        void getParams(PID_params_t & params);
+        void getParams(PID_params_t * params);
         
         /**
          * @brief Get current pid state.
          * 
          * @param state state to update 
          */
-        void getState(PID_state_t & state);
+        void getState(PID_state_t * state);
         
         /**
          * @brief Reset pid state.
