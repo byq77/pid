@@ -58,23 +58,20 @@ int PIDController::updateState(const float * curr_setpoint, const float * curr_f
     float pidout_internal = _params.kp*error + _params.ki*_state.int_sum;
     
     // Compute dchange (derivative slope)
-    float dchange;
+    float dchange = (*curr_feedback - _state.last_error);
+    _state.last_last_error = _state.last_error; 
     if(_params.flags & PID_DERIV_RESP_GLITCHES_FIX)
     {
         if(_params.flags & PID_AVG_FILTER)
             dchange = (*curr_feedback - _state.last_last_error)/2;
         else
             dchange = (*curr_feedback - _state.last_error);
-        _state.last_last_error = _state.last_error; 
         _state.last_error = *curr_feedback;
     }
     else
     {
         if(_params.flags & PID_AVG_FILTER)
             dchange = (error - _state.last_last_error)/2;
-        else
-            dchange = (error - _state.last_error);
-        _state.last_last_error = _state.last_error; 
         _state.last_error = error;
     }
 
