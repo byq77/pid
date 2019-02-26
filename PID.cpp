@@ -115,3 +115,17 @@ void PIDController::reset()
     _state.last_error = 0.0f;
     _state.last_last_error = 0.0f;
 }
+
+void PIDController::updateInterval(float dt)
+{
+    //TODO: implement
+    (void)dt;
+}
+
+void PIDController::updateTuning(float kp, float kd, float ki)
+{
+    //TODO: implement
+    (void) kp;
+    (void) kd;
+    (void) ki;
+}

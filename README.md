@@ -1,2 +1,6 @@
-# pid
-PID class
+# PIDController
+
+Proportional-Integral-derivative controller with extended capabilities.
+
+
+
