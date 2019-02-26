@@ -7,7 +7,22 @@
  */
 #include "PID.h"
 
-static const PID_params_t DEFAULT_PARAMS; //TODO: add some default params
+static const PID_params_t DEFAULT_PARAMS = {
+    .flags = PIDController::PID_INT_RATE_LIMIT,
+    .ki = 0,
+    .kp = 0.001,
+    .kd = 0,
+    .bias = 0,
+    .anti_windup = 0,
+    .int_rate_limit = 0.1, 
+    .out_min = -1,
+    .out_max = 1,
+    .in_min = -500,
+    .in_max = 500, 
+    .mdr = 0,
+    .mdr_spins = 0,
+    .dt = 0.05
+};
 
 PIDController::PIDController()
     : _params(DEFAULT_PARAMS), _state()
