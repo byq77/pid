@@ -25,17 +25,16 @@ int PIDController::updateState(const float * curr_setpoint, const float * curr_f
 {
     // Check if inputs are correct
     if(*curr_setpoint > _params.in_max || *curr_setpoint < _params.in_min)
-        return 1; //TODO: add return code
+        return PID_ERROR_SETPOINT_LIMITS; 
     if(*curr_feedback > _params.in_max || *curr_feedback < _params.in_min)
-        return 1; //TODO: add return code (FAILURE)
+        return PID_ERROR_FEEDBACK_LIMITS; // Possible system failure, react immediately!
 
     // Compute error
     float error = *curr_setpoint - *curr_feedback;
     if(_params.flags & PID_END_REG_JOB_SUCCESS)
     {
         //TODO: implement
-        //TODO: add return code
-        return 1;
+        return PID_REGULATION_END;
     }
 
     // Compute proportional and integral part
@@ -91,7 +90,7 @@ int PIDController::updateState(const float * curr_setpoint, const float * curr_f
         _state.int_sum += ichange * _params.dt;
 
     *pidout = pidout_internal;
-    return 0;
+    return PID_COMPUTATION_SUCCESS;
 }
 
 void PIDController::updateParams(const PID_params_t &params)
@@ -118,14 +117,24 @@ void PIDController::reset()
 
 void PIDController::updateInterval(float dt)
 {
-    //TODO: implement
-    (void)dt;
+    // update internal parameters:
+    if(dt<=0)
+        return;
+    _params.kp *= (dt/_params.dt);
+    _params.ki *= (dt/_params.dt);
+    _params.kd *= (dt/_params.dt);
+    _state.last_error *= (dt/_params.dt);
+    _state.last_last_error *= (dt/_params.dt);
+    _params.dt = dt;
 }
 
 void PIDController::updateTuning(float kp, float kd, float ki)
 {
-    //TODO: implement
-    (void) kp;
-    (void) kd;
-    (void) ki;
+    if( ki != 0.0f)
+    {
+        _state.int_sum *= (ki/_params.ki);
+    }
+    _params.kp =kp;
+    _params.kd =kd;
+    _params.ki =ki;
 }
