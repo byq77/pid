@@ -8,11 +8,10 @@
 #ifndef __PID_H__
 #define __PID_H__
 
-#include <stdint.h>
+#include <mbed.h>
 
 #define PID_ERROR_SETPOINT_LIMITS   1 ///< setpoint exceeds input limit 
 #define PID_ERROR_FEEDBACK_LIMITS   2 ///< feedback exceeds input limit (!!SYSTEM FAILURE!!)   
-#define PID_REGULATION_END          3 ///< regulation was stopped 
 #define PID_COMPUTATION_SUCCESS     0 ///< computation success - new pid output
 
 /**
@@ -22,20 +21,19 @@
  */
 typedef struct PID_params
 {
-    uint8_t flags;        ///< enable PID functionalities
-    float ki;             ///< integral part constant
-    float kp;             ///< proportional part constant
-    float kd;             ///< derivative part constant
-    float bias;           ///< controller output bias
-    float anti_windup;    ///< anti-windup compensation factor
-    float int_rate_limit; ///< maximum integral update rate
-    float out_min;        ///< upper output limit
-    float out_max;        ///< lower output limit
-    float in_min;         ///< upper input limit
-    float in_max;         ///< lower input limit
-    float mdr;            ///< reserved
-    int mdr_spins;        ///< reserved
-    float dt;             ///< update interval [sec]
+    uint8_t flags;             ///< enable PID functionalities
+    float ki;                  ///< integral part constant
+    float kp;                  ///< proportional part constant
+    float kd;                  ///< derivative part constant
+    float bias;                ///< controller output bias
+    float anti_windup;         ///< anti-windup compensation factor
+    float int_rate_limit;      ///< maximum integral update rate
+    float out_min;             ///< upper output limit
+    float out_max;             ///< lower output limit
+    float in_min;              ///< upper input limit
+    float in_max;              ///< lower input limit
+    float dt;                  ///< update interval [sec]
+    float min_pid_output_step; ///< output quantum - minimal step on output
 } PID_params_t;
 
 /**
@@ -43,10 +41,10 @@ typedef struct PID_params
  */
 typedef struct PID_state
 {
-    float int_sum;         ///< integral part sum
+    double int_sum;        ///< integral part sum
     float last_error;      ///< control error
     float last_last_error; ///< previous control error
-    int mdr_spins_count;   ///< reserved
+    float last_pidout;     ///< previous pid output
 } PID_state_t;
 
 /**
@@ -58,6 +56,7 @@ typedef struct PID_state
  *  * Anti-windup software reduction strategy
  *  * Integral rate limiting
  *  * Derivative glitches reduction strategy
+ *  * PID output quantizing
  * @sa PID_params
  * @sa PID_state
  * @sa PID_flags
@@ -80,7 +79,7 @@ class PIDController
             PID_INT_RATE_LIMIT = 0x02,          ///< enable integral part limitation
             PID_AVG_FILTER = 0x04,              ///< enable derivative average filter
             PID_DERIV_RESP_GLITCHES_FIX = 0x08, ///< applay fix for derivative response
-            PID_END_REG_JOB_SUCCESS = 0x10      ///< reserved
+            PID_USE_QUANTUM_OUTPUT = 0x10       ///< enable output quantizing
         };        
 
         /**
@@ -133,7 +132,7 @@ class PIDController
          * @param pidout new pid output
          * @return 0 on success, 1 if inputs are incorrect
          */
-        int updateState(const float * curr_setpoint, const float * curr_feedback, float * pidout);
+        int updateState(float curr_setpoint, float curr_feedback, float * pidout);
         
         /**
          * @brief Update pid computation interval.
@@ -156,5 +155,7 @@ class PIDController
     private:
         PID_params_t _params;
         PID_state_t _state;
+        float _ki;
+        float _kd; 
 };
 #endif /*__PID_H__ */
