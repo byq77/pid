@@ -116,13 +116,20 @@ int PIDController::updateState(float curr_setpoint, float curr_feedback, float *
         *pidout = _state.last_pidout + tmp * _params.min_pid_output_step;
     }
     else
-        *pidout = pidout_internal;
+        *pidout = _state.last_pidout = pidout_internal;
+    
     return PID_COMPUTATION_SUCCESS;
 }
 
 void PIDController::updateParams(const PID_params_t * params)
 {
+    if(params->ki == 0.0f)
+        _state.int_sum = 0;
+    else if(_params.ki != 0 )
+        _state.int_sum *= (params->ki/_params.ki);  
     _params = *params;
+    _kd = _params.kd / _params.dt;
+    _ki = _params.ki / _params.dt;
 }
 
 void PIDController::getParams(PID_params_t * params)
@@ -159,7 +166,7 @@ void PIDController::updateTuning(float kp, float kd, float ki)
 {
     if( ki == 0.0f)
         _state.int_sum = 0;
-    if( _params.ki != 0)
+    else if( _params.ki != 0)
         _state.int_sum *= (ki/_params.ki);
     _params.kp = kp;
     _params.kd = kd;
