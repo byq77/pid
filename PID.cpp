@@ -45,11 +45,13 @@ PIDController::PIDController(const PID_params * params)
 
 int PIDController::updateState(float curr_setpoint, float curr_feedback, float * pidout)
 {
-    // Check if inputs are correct
-    if(curr_setpoint > _params.in_max || curr_setpoint < _params.in_min)
-        return PID_ERROR_SETPOINT_LIMITS; 
-    if(curr_feedback > _params.in_max || curr_feedback < _params.in_min)
-        return PID_ERROR_FEEDBACK_LIMITS; // Possible system failure, react immediately!
+    // saturation
+    curr_setpoint = ( curr_setpoint > _params.in_max ? _params.in_max : (curr_setpoint < _params.in_min ? _params.in_min : curr_setpoint)); 
+
+    // if(curr_setpoint > _params.in_max || curr_setpoint < _params.in_min)
+        // return PID_ERROR_SETPOINT_LIMITS; 
+    // if(curr_feedback > _params.in_max || curr_feedback < _params.in_min)
+        // do{}while(0); //FIXME: Possible system failure, notify user!
 
     // Compute error
     float error = (curr_setpoint - curr_feedback);
