@@ -21,19 +21,21 @@
  */
 typedef struct PID_params
 {
-    uint8_t flags;             ///< enable PID functionalities
-    float ki;                  ///< integral part constant
-    float kp;                  ///< proportional part constant
-    float kd;                  ///< derivative part constant
-    float bias;                ///< controller output bias
-    float anti_windup;         ///< anti-windup compensation factor
-    float int_rate_limit;      ///< maximum integral update rate
-    float out_min;             ///< upper output limit
-    float out_max;             ///< lower output limit
-    float in_min;              ///< upper input limit
-    float in_max;              ///< lower input limit
-    float dt;                  ///< update interval [sec]
-    float min_pid_output_step; ///< output quantum - minimal step on output
+    uint8_t flags;            ///< enable PID functionalities
+    float ki;                 ///< integral part constant
+    float kp;                 ///< proportional part constant
+    float kd;                 ///< derivative part constant
+    float bias;               ///< controller output bias
+    float anti_windup;        ///< anti-windup compensation factor
+    float windup_lim;         ///< anti-windup integral sum limit
+    float int_rate_lim;       ///< maximum integral update rate
+    float out_min;            ///< upper output limit
+    float out_max;            ///< lower output limit
+    float in_min;             ///< upper input limit
+    float in_max;             ///< lower input limit
+    float clean_feedback_lim; ///<
+    float clean_rate;         ///<
+    float dt;                 ///< update interval [sec]
 } PID_params_t;
 
 /**
@@ -79,13 +81,8 @@ class PIDController
             PID_INT_RATE_LIMIT = 0x02,          ///< enable integral part limitation
             PID_AVG_FILTER = 0x04,              ///< enable derivative average filter
             PID_DERIV_RESP_GLITCHES_FIX = 0x08, ///< applay fix for derivative response
-            PID_USE_QUANTUM_OUTPUT = 0x10       ///< enable output quantizing
+            PID_CLEAN_INT_SUM = 0x10            ///< enable integral sum autoclean when feedback and setpoint are close to 0
         };        
-
-        /**
-         * @brief Create controller with default params.
-         */
-        PIDController();
 
         /**
          * @brief Create controller.
@@ -93,7 +90,7 @@ class PIDController
          */
         PIDController(const PID_params_t * params);
         
-        ~PIDController();
+        virtual ~PIDController();
         
         /**
          * @brief Update pid configuration.
