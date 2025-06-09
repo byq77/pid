@@ -1,10 +1,15 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.8)
 
 project(pid)
 
-# Default to C++14
+# Default to C99
+if(NOT CMAKE_C_STANDARD)
+  set(CMAKE_C_STANDARD 99)
+endif()
+
+# Default to C++17
 if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 14)
+  set(CMAKE_CXX_STANDARD 17)
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -12,24 +17,41 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 find_package(ament_cmake REQUIRED)
-find_package(rclcpp REQUIRED)
-find_package(rcutils)
-find_package(std_msgs REQUIRED)
 
-include_directories(include 
-  ${rclcpp_INCLUDE_DIRS}
+set(THIS_PACKAGE_INCLUDE_DEPENDS
+  rclcpp
+  rcutils
+  std_msgs
 )
 
-add_executable(controller src/pid/controller.cpp src/pid/pid.cpp)
+foreach(dep IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
+    find_package(${dep} REQUIRED)
+endforeach()
+
+add_executable(controller
+     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/pid/controller.cpp>
+     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/pid/pid.cpp>
+)
+target_include_directories(controller
+  PRIVATE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include/${PROJECT_NAME}>
+)
 target_link_libraries(controller
-                      ${rclcpp_LIBRARIES}
-                      ${rmw_implementation_LIBRARIES}
-                      ${std_msgs_LIBRARIES})
+                      rclcpp::rclcpp
+                      rcutils::rcutils
+                      ${std_msgs_TARGETS})
 install(TARGETS controller DESTINATION lib/${PROJECT_NAME})
 
-
 function(custom_executable subfolder target)
-  add_executable(${target} src/${subfolder}/${target}.cpp)
+  add_executable(${target} 
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/${subfolder}/${target}.cpp>
+  )
+  target_include_directories(${target}
+    PRIVATE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include/${PROJECT_NAME}>
+  )  
   ament_target_dependencies(${target}
     "rclcpp"
     "rcutils"
@@ -39,7 +61,6 @@ function(custom_executable subfolder target)
 endfunction()
 
 custom_executable(pid servo_sim)
-#custom_executable(pid controller)
 custom_executable(pid setpoint)
 
 install(

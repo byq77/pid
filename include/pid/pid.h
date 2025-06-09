@@ -1,13 +1,14 @@
-#ifndef PID_H
-#define PID_H
+#ifndef PID_NS__PID_H_
+#define PID_NS__PID_H_
 
-#include "math.h"
-#include "rclcpp/rclcpp.hpp"
 #include <iostream>
-#include <std_msgs/msg/bool.hpp>
-#include <std_msgs/msg/float64.hpp>
-#include <stdio.h>
+#include <cmath>
+#include <cstdio>
 #include <string>
+
+#include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/bool.hpp"
+#include "std_msgs/msg/float64.hpp"
 
 namespace pid_ns
 {
@@ -82,10 +83,10 @@ private:
   double windup_limit_ = 1000;
 
   // Initialize filter data with zeros
-  std::vector<double> error_ = std::vector<double>(3,0);
-  std::vector<double> filtered_error_ = std::vector<double>(3,0);
-  std::vector<double> error_deriv_ = std::vector<double>(3,0);
-  std::vector<double> filtered_error_deriv_ = std::vector<double>(3,0);
+  std::vector<double> error_ = std::vector<double>(3, 0);
+  std::vector<double> filtered_error_ = std::vector<double>(3, 0);
+  std::vector<double> error_deriv_ = std::vector<double>(3, 0);
+  std::vector<double> filtered_error_deriv_ = std::vector<double>(3, 0);
 
   ///////////////////////////////////////////
   // Topic and node names and message objects
@@ -97,4 +98,4 @@ private:
 }  // end pid namespace
 
 
-#endif
+#endif // PID_NS__PID_H_
