@@ -35,6 +35,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 ///////////////////////////////////////////////////////////////////////////////
+// Modifications:
+//      Date     : June 12, 2025
+//      Author   : byq77
+///////////////////////////////////////////////////////////////////////////////
 
 // Instantiate a PID node.
 
@@ -45,7 +49,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "rcutils/cmdline_parser.h"
 
-#include "pid/pid.h"
+#include "pid/pid.hpp"
 
 void print_usage()
 {
@@ -73,16 +77,15 @@ int main(int argc, char * argv[])
   rclcpp::init(argc, argv);
 
   // Create the PID node.
-  auto my_pid = std::make_shared<pid_ns::PID>();
+  auto my_pid = std::make_shared<pid_controller::PID>();
 
   // Respond to inputs until shut down
-  // TODO: make this rate configurable
-  rclcpp::Rate loop_rate(200);
+  rclcpp::Rate loop_rate(my_pid->rate());
   while (rclcpp::ok())
   {
     rclcpp::spin_some( my_pid );
 
-    my_pid->doCalcs();
+    my_pid->update();
 
     // Add a small sleep to avoid 100% CPU usage
     loop_rate.sleep();

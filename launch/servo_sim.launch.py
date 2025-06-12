@@ -35,6 +35,10 @@
 ## OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ##
 ###############################################################################
+## Modifications:
+##      Date     : June 12, 2025
+##      Author   : byq77
+###############################################################################
 
 from launch import LaunchDescription
 from launch_ros.actions import Node
@@ -43,8 +47,8 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
             package='pid',
-            executable='controller',
-            name='controller'
+            executable='pid_controller',
+            name='pid_controller'
         ),
         Node(
             package='pid',

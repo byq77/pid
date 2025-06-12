@@ -1,0 +1,52 @@
+pid_controller:
+  rate:
+    type: double
+    default_value: 200.0
+    read_only: true
+    description: "Rate in Hz at which the PID controller updates."
+    validation:
+      gt_eq<>: [10.0]
+  Kp:
+    type: double
+    default_value: 1.0
+    read_only: false
+    description: "Proportional gain for the PID controller." 
+  Ki:
+    type: double
+    default_value: .0
+    read_only: false
+    description: "Integral gain for the PID controller."
+  Kd:
+    type: double
+    default_value: .0
+    read_only: false
+    description: "Derivative gain for the PID controller."
+  effort_limit:
+    type: double_array
+    default_value: [-1000.0, 1000.0]
+    read_only: false
+    description: "Effort limits for the PID controller."
+    validation:
+      fixed_size<>: [2]
+  windup_limit:
+    type: double_array
+    default_value: [-1000.0, 1000.0]
+    read_only: false
+    description: "Windup limit for the PID controller."
+    validation:
+      fixed_size<>: [2]
+  cutoff_frequency:
+    type: double
+    default_value: -1.0
+    read_only: false
+    description: "LPF cutoff frequency."
+  angle_error:
+    type: bool
+    default_value: false
+    read_only: false
+    description: "If true, maintain angular error between -pi and pi."
+  pid_enabled:
+    type: bool
+    default_value: true
+    read_only: false
+    description: "Enable or disable the PID controller."

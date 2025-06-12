@@ -1,5 +1,5 @@
-#ifndef PID_NS__PID_H_
-#define PID_NS__PID_H_
+#ifndef PID_CONTROLLER__PID_HPP_
+#define PID_CONTROLLER__PID_HPP_
 
 #include <iostream>
 #include <cmath>
@@ -10,25 +10,33 @@
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/float64.hpp"
 
-namespace pid_ns
+#include "pid/pid_controller_parameters.hpp"
+
+
+namespace pid_controller
 {
 class PID : public rclcpp::Node
 {
 public:
   explicit PID();
-  void doCalcs();
+  void update();
 
-  // Primary output variable
-  double control_effort_ = 0;
+public:
+  double rate() const
+  {
+    return params_.rate;
+  }
+
+public:
+  static constexpr const char * TOPIC_FROM_PLANT = "state";
+  static constexpr const char * SETPOINT_TOPIC = "setpoint";
+  static constexpr const char * TOPIC_FROM_CONTROLLER = "control_effort";
+  static constexpr const char * NODE_NAME = "pid_controller";
 
 private:
-  void state_callback(const std_msgs::msg::Float64::SharedPtr msg);
-  void setpoint_callback(const std_msgs::msg::Float64::SharedPtr msg);
-  void printParameters();
-  bool validateParameters();
+  void getAndValidateParameters();
 
-  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr state_sub_, setpoint_sub_;
-
+private:
   /////////////////////////////////////////
   // Primary PID controller input variables
   /////////////////////////////////////////
@@ -53,15 +61,15 @@ private:
   // Negative -> Has not been set by the user yet, so use a default.
   double cutoff_frequency_ = -1;
 
-  std::string topic_from_controller_ = "control_effort";
-  std::string topic_from_plant_ = "state";
-  std::string setpoint_topic_ = "setpoint";
-
   //////////////////////////////////
   // Used for internal calculations:
   //////////////////////////////////
-  rclcpp::Time prev_time_;
-  rclcpp::Duration delta_t_;
+
+  // Primary output variable
+  double control_effort_ = 0;
+
+  rclcpp::Time prev_time_{};
+  rclcpp::Duration delta_t_{std::chrono::nanoseconds::zero()};
   bool first_reconfig_ = true;
 
   double error_integral_ = 0;
@@ -77,10 +85,10 @@ private:
   double tan_filt_ = 1.;
 
   // Upper and lower saturation limits
-  double upper_limit_ = 1000, lower_limit_ = -1000;
+  double effort_upper_limit_ = 1000, effort_lower_limit_ = -1000;
 
   // Anti-windup term. Limits the absolute value of the integral term.
-  double windup_limit_ = 1000;
+  double windup_upper_limit_ = 1000, windup_lower_limit_ = -1000;
 
   // Initialize filter data with zeros
   std::vector<double> error_ = std::vector<double>(3, 0);
@@ -92,10 +100,12 @@ private:
   // Topic and node names and message objects
   ///////////////////////////////////////////
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr control_effort_pub_;
-
+  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr state_sub_, setpoint_sub_;
   std_msgs::msg::Float64 control_msg_, state_msg_;
+  std::shared_ptr<ParamListener> param_listener_;
+  Params params_;
 };
-}  // end pid namespace
+}  // namespace pid_controller
 
 
-#endif // PID_NS__PID_H_
+#endif // PID_CONTROLLER__PID_HPP_

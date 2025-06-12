@@ -35,113 +35,84 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 ///////////////////////////////////////////////////////////////////////////////
+// Modifications:
+//      Date     : June 12, 2025
+//      Author   : byq77
+///////////////////////////////////////////////////////////////////////////////
 
 // Perform PID calculations.
+#include "pid/pid.hpp"
 
-#include "pid/pid.h"
-
-using namespace pid_ns;
+using namespace pid_controller;
 using std::placeholders::_1;
 
-PID::PID():
-  Node("controller"), delta_t_(0, 0)
+PID::PID()
+:Node(NODE_NAME)
 {
-
-  state_sub_ = this->create_subscription<std_msgs::msg::Float64>(topic_from_plant_, 10, std::bind(&PID::state_callback, this, _1));
-  setpoint_sub_ = this->create_subscription<std_msgs::msg::Float64>(setpoint_topic_, 10, std::bind(&PID::setpoint_callback, this, _1));
+  state_sub_ = this->create_subscription<std_msgs::msg::Float64>(TOPIC_FROM_PLANT, 10,
+      [this](const std_msgs::msg::Float64::SharedPtr msg){
+        plant_state_ = msg->data;
+        new_state_or_setpt_ = true;
+    });
+  setpoint_sub_ = this->create_subscription<std_msgs::msg::Float64>(SETPOINT_TOPIC, 10,
+      [this](const std_msgs::msg::Float64::SharedPtr msg) {
+        setpoint_ = msg->data;
+        new_state_or_setpt_ = true;
+    });
 
   // Create a publisher with a custom Quality of Service profile.
   // rclcpp::QoS custom_qos_profile(rclcpp::KeepLast(7), rmw_qos_profile_sensor_data);
-  control_effort_pub_ = this->create_publisher<std_msgs::msg::Float64>(topic_from_controller_, 10);
+  control_effort_pub_ = this->create_publisher<std_msgs::msg::Float64>(TOPIC_FROM_CONTROLLER, 10);
 
-  // Declare parameters
-  this->declare_parameter<double>("Kp", 1.0);
-  this->declare_parameter<double>("Ki", 0.0);
-  this->declare_parameter<double>("Kd", 0.0);
-  this->declare_parameter<double>("lower_limit", -1000.0);
-  this->declare_parameter<double>("upper_limit", 1000.0);
-  this->declare_parameter<double>("windup_limit", -1000.0);
-  this->declare_parameter<double>("cutoff_frequency", -1.0);
-  this->declare_parameter<bool>("angle_error", false);
-  this->declare_parameter<bool>("pid_enabled", true);
+  // Create parameter listener
+  param_listener_ = std::make_shared<ParamListener>(this->get_node_parameters_interface());
 
-  printParameters();
-
-  if (not validateParameters())
-    std::cout << "Error: invalid parameter\n";
+  // Get initial parameters
+  getAndValidateParameters();
 }
 
-
-// Callbacks for incoming state message
-void PID::state_callback(const std_msgs::msg::Float64::SharedPtr msg)
+inline void PID::getAndValidateParameters()
 {
-  plant_state_ = msg->data;
-  RCLCPP_DEBUG(this->get_logger(), "State: [%f]", plant_state_);
-
-  new_state_or_setpt_ = true;
-}
-
-void PID::setpoint_callback(const std_msgs::msg::Float64::SharedPtr msg)
-{
-  setpoint_ = msg->data;
-  RCLCPP_DEBUG(this->get_logger(), "Setpoint: [%f]", setpoint_);
-
-  new_state_or_setpt_ = true;
-}
-
-void PID::printParameters()
-{
-  std::cout << std::endl << "PID PARAMETERS" << std::endl << "-----------------------------------------" << std::endl;
-  std::cout << "Kp: " << Kp_ << ",  Ki: " << Ki_ << ",  Kd: " << Kd_ << std::endl;
-  if (cutoff_frequency_ == -1)  // If the cutoff frequency was not specified by the user
-    std::cout << "LPF cutoff frequency: 1/4 of sampling rate" << std::endl;
-  else
-    std::cout << "LPF cutoff frequency: " << cutoff_frequency_ << std::endl;
-  std::cout << "pid node name: " << this->get_name() << std::endl;
-  std::cout << "Name of topic from controller: " << topic_from_controller_ << std::endl;
-  std::cout << "Name of topic from the plant: " << topic_from_plant_ << std::endl;
-  std::cout << "Name of setpoint topic: " << setpoint_topic_ << std::endl;
-  std::cout << "Integral-windup limit: " << windup_limit_ << std::endl;
-  std::cout << "Saturation limits: " << upper_limit_ << "/" << lower_limit_ << std::endl;
-  std::cout << "-----------------------------------------" << std::endl;
-
-  return;
-}
-
-bool PID::validateParameters()
-{
-  if (lower_limit_ > upper_limit_)
-  {
-    RCLCPP_ERROR(this->get_logger(), "The lower saturation limit cannot be greater than the upper "
-              "saturation limit.");
-    return (false);
+  if(param_listener_->try_get_params(this->params_)) {
+    if (((params_.Kp <= 0. && params_.Ki <= 0. && params_.Kd <= 0.) ||
+      (params_.Kp >= 0. && params_.Ki >= 0. && params_.Kd >= 0.)))    // All 3 gains should have the same sign
+    {
+      Kp_ = params_.Kp;
+      Ki_ = params_.Ki;
+      Kd_ = params_.Kd;
+    } else {
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *(this->get_clock()), 1000,
+        "All three gains (Kp, Ki, Kd) should have the same sign for "
+        "stability.");
+    }
+    if (params_.effort_limit[0] < params_.effort_limit[1]) {
+      effort_lower_limit_ = params_.effort_limit[0];
+      effort_upper_limit_ = params_.effort_limit[1];
+    } else {
+      RCLCPP_ERROR_THROTTLE(this->get_logger(), *(this->get_clock()), 1000,
+      "The lower saturation limit cannot be greater than the upper "
+      "saturation limit.");
+    }
+    if (params_.windup_limit[0] < params_.windup_limit[1]) {
+      windup_lower_limit_ = params_.windup_limit[0];
+      windup_upper_limit_ = params_.windup_limit[1];
+    } else {
+      RCLCPP_ERROR_THROTTLE(this->get_logger(), *(this->get_clock()), 1000,
+        "The lower windup limit cannot be greater than the upper "
+        "windup limit.");
+    }
+    cutoff_frequency_ = params_.cutoff_frequency;
+    angle_error_ = params_.angle_error;
+    pid_enabled_ = params_.pid_enabled;
   }
-
-  return true;
 }
 
-void PID::doCalcs()
+void PID::update()
 {
   // Do fresh calcs if knowledge of the system has changed.
-  if (new_state_or_setpt_)
-  {
+  if (new_state_or_setpt_) {
     // Get parameters from the server
-    this->get_parameter("Kp", Kp_);
-    this->get_parameter("Ki", Ki_);
-    this->get_parameter("Kd", Kd_);
-    this->get_parameter("lower_limit", lower_limit_);
-    this->get_parameter("upper_limit", upper_limit_);
-    this->get_parameter("windup_limit", windup_limit_);
-    this->get_parameter("cutoff_frequency", cutoff_frequency_);
-    this->get_parameter("angle_error", angle_error_);
-    this->get_parameter("pid_enabled", pid_enabled_);
-
-    if (!((Kp_ <= 0. && Ki_ <= 0. && Kd_ <= 0.) ||
-          (Kp_ >= 0. && Ki_ >= 0. && Kd_ >= 0.)))  // All 3 gains should have the same sign
-    {
-      RCLCPP_WARN(this->get_logger(), "All three gains (Kp, Ki, Kd) should have the same sign for "
-               "stability.");
-    }
+    getAndValidateParameters();
 
     error_[2] = error_[1];
     error_[1] = error_[0];
@@ -150,12 +121,13 @@ void PID::doCalcs()
     // If the angle_error param is true, then address discontinuity in error
     // calc.
     // For example, this maintains an angular error between -180:180.
-    if (angle_error_)
-    {
-      while (error_[0] < -1.0 * angle_wrap_ / 2.0)
+    if (angle_error_) {
+      while (error_[0] < -1.0 * angle_wrap_ / 2.0) {
         error_[0] += angle_wrap_;
-      while (error_[0] > angle_wrap_ / 2.0)
+      }
+      while (error_[0] > angle_wrap_ / 2.0) {
         error_[0] -= angle_wrap_;
+      }
 
       // The proportional error will flip sign, but the integral error
       // won't and the derivative error will be poorly defined. So,
@@ -166,45 +138,45 @@ void PID::doCalcs()
     }
 
     // calculate delta_t
-    if ( prev_time_.nanoseconds()!=0 )  // Not first time through the program
-    {
+    if (prev_time_.nanoseconds() != 0) { // Not first time through the program
       delta_t_ = this->now() - prev_time_;
       prev_time_ = this->now();
-      if (0 == delta_t_.nanoseconds())
-      {
-        RCLCPP_ERROR(this->get_logger(), "delta_t is 0, skipping this loop. Possible overloaded CPU.");
+      if (0 == delta_t_.nanoseconds()) {
+        RCLCPP_ERROR(this->get_logger(),
+          "delta_t is 0, skipping this loop. Possible overloaded CPU.");
         return;
       }
-    }
-    else
-    {
+    } else {
       RCLCPP_INFO(this->get_logger(), "prev_time is 0, doing nothing");
       prev_time_ = this->now();
       return;
     }
 
     // integrate the error
-    error_integral_ += error_[0] * delta_t_.nanoseconds()/1e9;
+    error_integral_ += error_[0] * delta_t_.nanoseconds() / 1e9;
 
     // Apply windup limit to limit the size of the integral term
-    if (error_integral_ > fabsf(windup_limit_))
-      error_integral_ = fabsf(windup_limit_);
+    if (error_integral_ > windup_upper_limit_) {
+      error_integral_ = windup_upper_limit_;
+    }
 
-    if (error_integral_ < -fabsf(windup_limit_))
-      error_integral_ = -fabsf(windup_limit_);
+    if (error_integral_ < windup_lower_limit_) {
+      error_integral_ = windup_lower_limit_;
+    }
 
     // My filter reference was Julius O. Smith III, Intro. to Digital Filters
     // With Audio Applications.
-    if (cutoff_frequency_ != -1)
-    {
+    if (cutoff_frequency_ != -1) {
       // Check if tan(_) is really small, could cause c = NaN
-      tan_filt_ = tan((cutoff_frequency_ * 6.2832) * (delta_t_.nanoseconds()/1e9) / 2);
+      tan_filt_ = tan((cutoff_frequency_ * 6.2832) * (delta_t_.nanoseconds() / 1e9) / 2);
 
       // Avoid tan(0) ==> NaN
-      if ((tan_filt_ <= 0.) && (tan_filt_ > -0.01))
+      if ((tan_filt_ <= 0.) && (tan_filt_ > -0.01)) {
         tan_filt_ = -0.01;
-      if ((tan_filt_ >= 0.) && (tan_filt_ < 0.01))
+      }
+      if ((tan_filt_ >= 0.) && (tan_filt_ < 0.01)) {
         tan_filt_ = 0.01;
+      }
 
       c_ = 1 / tan_filt_;
     }
@@ -212,22 +184,23 @@ void PID::doCalcs()
     filtered_error_[2] = filtered_error_[1];
     filtered_error_[1] = filtered_error_[0];
     filtered_error_[0] = (1 / (1 + c_ * c_ + 1.414 * c_)) * (error_[2] + 2 * error_[1] + error_[0] -
-                                                                (c_ * c_ - 1.414 * c_ + 1) * filtered_error_[2] -
-                                                                (-2 * c_ * c_ + 2) * filtered_error_[1]);
+      (c_ * c_ - 1.414 * c_ + 1) * filtered_error_[2] -
+      (-2 * c_ * c_ + 2) * filtered_error_[1]);
 
     // Take derivative of error
     // First the raw, unfiltered data:
     error_deriv_[2] = error_deriv_[1];
     error_deriv_[1] = error_deriv_[0];
-    error_deriv_[0] = (error_[0] - error_[1]) / delta_t_.nanoseconds()/1e9;
+    error_deriv_[0] = (error_[0] - error_[1]) / delta_t_.nanoseconds() / 1e9;
 
     filtered_error_deriv_[2] = filtered_error_deriv_[1];
     filtered_error_deriv_[1] = filtered_error_deriv_[0];
 
     filtered_error_deriv_[0] =
-        (1 / (1 + c_ * c_ + 1.414 * c_)) *
-        (error_deriv_[2] + 2 * error_deriv_[1] + error_deriv_[0] -
-         (c_ * c_ - 1.414 * c_ + 1) * filtered_error_deriv_[2] - (-2 * c_ * c_ + 2) * filtered_error_deriv_[1]);
+      (1 / (1 + c_ * c_ + 1.414 * c_)) *
+      (error_deriv_[2] + 2 * error_deriv_[1] + error_deriv_[0] -
+      (c_ * c_ - 1.414 * c_ + 1) * filtered_error_deriv_[2] - (-2 * c_ * c_ + 2) *
+      filtered_error_deriv_[1]);
 
     // calculate the control effort
     proportional_ = Kp_ * filtered_error_[0];
@@ -236,20 +209,20 @@ void PID::doCalcs()
     control_effort_ = proportional_ + integral_ + derivative_;
 
     // Apply saturation limits
-    if (control_effort_ > upper_limit_)
-      control_effort_ = upper_limit_;
-    else if (control_effort_ < lower_limit_)
-      control_effort_ = lower_limit_;
+    if (control_effort_ > effort_upper_limit_) {
+      control_effort_ = effort_upper_limit_;
+    } else if (control_effort_ < effort_lower_limit_) {
+      control_effort_ = effort_lower_limit_;
+    }
   }
 
   // Publish the stabilizing control effort if the controller is enabled
-  if (pid_enabled_)
-  {
+  if (pid_enabled_) {
     control_msg_.data = control_effort_;
     control_effort_pub_->publish(control_msg_);
-  }
-  else
+  } else {
     error_integral_ = 0.0;
+  }
 
   new_state_or_setpt_ = false;
 }

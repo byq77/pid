@@ -18,30 +18,41 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 
-set(THIS_PACKAGE_INCLUDE_DEPENDS
+set(this_package_include_depends
   rclcpp
   rcutils
   std_msgs
+  generate_parameter_library
 )
 
-foreach(dep IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
-    find_package(${dep} REQUIRED)
+foreach(dependency IN ITEMS ${this_package_include_depends})
+    find_package(${dependency} REQUIRED)
 endforeach()
 
-add_executable(controller
-     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/pid/controller.cpp>
-     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/pid/pid.cpp>
+# region pid_controller
+set(target pid_controller)
+
+generate_parameter_library(pid_controller_parameters
+  src/pid/pid_controller.yaml
 )
-target_include_directories(controller
+
+add_executable(${target}
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/pid/pid_controller.cpp>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/pid/pid.cpp>
+)
+target_include_directories(${target}
   PRIVATE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>
 )
-target_link_libraries(controller
+target_link_libraries(${target} 
+                      PRIVATE
+                      pid_controller_parameters
                       rclcpp::rclcpp
                       rcutils::rcutils
                       ${std_msgs_TARGETS})
-install(TARGETS controller DESTINATION lib/${PROJECT_NAME})
+install(TARGETS ${target} DESTINATION lib/${PROJECT_NAME})
+# endregion pid_controller
 
 function(custom_executable subfolder target)
   add_executable(${target} 
@@ -62,6 +73,10 @@ endfunction()
 
 custom_executable(pid servo_sim)
 custom_executable(pid setpoint)
+
+ament_export_include_directories(
+  include
+)
 
 install(
   DIRECTORY launch
