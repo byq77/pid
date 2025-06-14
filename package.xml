@@ -16,6 +16,9 @@
   <depend>std_msgs</depend>
   <depend>generate_parameter_library</depend>
 
+  <exec_depend>plotjuggler</exec_depend>
+  <exec_depend>plotjuggler_ros</exec_depend>
+
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
 

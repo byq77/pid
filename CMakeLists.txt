@@ -79,7 +79,7 @@ ament_export_include_directories(
 )
 
 install(
-  DIRECTORY launch
+  DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME})
 
 ament_package()

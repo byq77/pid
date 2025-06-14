@@ -4,10 +4,12 @@ A PID controller for ROS2.
 
 ## Usage
 
-Launch simulation:
+Launch simulation with [PlotJuggler](https://github.com/facontidavide/PlotJuggler):
+
+![PlotJuggler](assets/plotjuggler_visualization.png)
 
 ```shell
-ros2 launch pid servo_sim.launch.py
+ros2 launch pid servo_sim_with_plotjuggler.launch.py
 ```
 
 ## Pid Controller Parameters
