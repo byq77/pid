@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////
-//      Title     : controller.cpp
+//      Title     : pid_controller.cpp
 //      Project   : pid
 //      Created   : 5/25/2018
 //      Author    : Andy Zelenak
@@ -81,9 +81,8 @@ int main(int argc, char * argv[])
 
   // Respond to inputs until shut down
   rclcpp::Rate loop_rate(my_pid->rate());
-  while (rclcpp::ok())
-  {
-    rclcpp::spin_some( my_pid );
+  while (rclcpp::ok()) {
+    rclcpp::spin_some(my_pid);
 
     my_pid->update();
 

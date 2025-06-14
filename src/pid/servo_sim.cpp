@@ -60,7 +60,7 @@ void print_usage()
 class ServoSim : public rclcpp::Node
 {
 public:
-  explicit ServoSim()
+  ServoSim()
   : Node("servo_sim"), delta_t_(0, 0)
   {
     state_msg_ = std_msgs::msg::Float64();
@@ -69,7 +69,8 @@ public:
     // rclcpp::QoS custom_qos_profile(rclcpp::KeepLast(7), rmw_qos_profile_sensor_data);
     state_pub_ = this->create_publisher<std_msgs::msg::Float64>("state", 10);
 
-    control_effort_sub_ = this->create_subscription<std_msgs::msg::Float64>("control_effort", 10, std::bind(&ServoSim::control_effort_callback, this, _1));
+    control_effort_sub_ = this->create_subscription<std_msgs::msg::Float64>("control_effort", 10,
+      std::bind(&ServoSim::control_effort_callback, this, _1));
 
     prev_time_ = this->now();
   }
@@ -81,10 +82,10 @@ public:
 
     decel_force_ = -(speed_ * friction_);  // can be +ve or -ve. Linear with speed
     acceleration_ = ((Kv_ * (control_effort_ - (Kbackemf_ * speed_)) + decel_force_) / mass_);  // a = F/m
-    speed_ = speed_ + (acceleration_ * delta_t_.nanoseconds()/1e9);
-    displacement_ = displacement_ + speed_ * delta_t_.nanoseconds()/1e9;
+    speed_ = speed_ + (acceleration_ * delta_t_.nanoseconds() / 1e9);
+    displacement_ = displacement_ + speed_ * delta_t_.nanoseconds() / 1e9;
     state_msg_.data = displacement_;
-    
+
     state_pub_->publish(state_msg_);
   }
 
@@ -92,8 +93,8 @@ private:
   // Callback for incoming control_effort messages
   void control_effort_callback(const std_msgs::msg::Float64::SharedPtr msg)
   {
-     control_effort_ = msg->data;
-     RCLCPP_DEBUG(this->get_logger(), "control effort: [%f]", control_effort_);
+    control_effort_ = msg->data;
+    RCLCPP_DEBUG(this->get_logger(), "control effort: [%f]", control_effort_);
   }
 
   std_msgs::msg::Float64 state_msg_;
@@ -137,9 +138,8 @@ int main(int argc, char * argv[])
 
   // Simulate until shut down
   rclcpp::Rate loop_rate(100);
-  while (rclcpp::ok())
-  {
-    rclcpp::spin_some( my_sim );
+  while (rclcpp::ok()) {
+    rclcpp::spin_some(my_sim);
 
     my_sim->simulate();
 

@@ -60,7 +60,7 @@ void print_usage()
 class Setpoint : public rclcpp::Node
 {
 public:
-  explicit Setpoint()
+  Setpoint()
   : Node("setpoint")
   {
     msg_ = std_msgs::msg::Float64();
@@ -74,15 +74,14 @@ public:
 
     double setpoint = 1;
 
-    while (rclcpp::ok())
-    {
+    while (rclcpp::ok()) {
       setpoint = -setpoint;
-      publish_message( setpoint );
+      publish_message(setpoint);
       loop_rate.sleep();
     }
   }
 
-  void publish_message(double& setpoint)
+  void publish_message(double & setpoint)
   {
     msg_.data = setpoint;
     pub_->publish(msg_);
