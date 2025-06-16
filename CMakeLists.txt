@@ -45,7 +45,7 @@ target_include_directories(${target}
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>
 )
-target_link_libraries(${target} 
+target_link_libraries(${target}
                       PRIVATE
                       pid_controller_parameters
                       rclcpp::rclcpp
@@ -55,14 +55,14 @@ install(TARGETS ${target} DESTINATION lib/${PROJECT_NAME})
 # endregion pid_controller
 
 function(custom_executable subfolder target)
-  add_executable(${target} 
+  add_executable(${target}
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/${subfolder}/${target}.cpp>
   )
   target_include_directories(${target}
     PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include/${PROJECT_NAME}>
-  )  
+  )
   ament_target_dependencies(${target}
     "rclcpp"
     "rcutils"

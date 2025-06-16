@@ -36,15 +36,17 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 // Modifications:
-//      Date     : June 12, 2025
 //      Author   : byq77
 ///////////////////////////////////////////////////////////////////////////////
 
 // Perform PID calculations.
+
 #include "pid/pid.hpp"
 
-using namespace pid_controller;
 using std::placeholders::_1;
+
+namespace pid_controller
+{
 
 PID::PID()
 :Node(NODE_NAME)
@@ -74,9 +76,9 @@ PID::PID()
 inline void PID::getAndValidateParameters()
 {
   if(param_listener_->try_get_params(this->params_)) {
-    if (((params_.Kp <= 0. && params_.Ki <= 0. && params_.Kd <= 0.) ||
-      (params_.Kp >= 0. && params_.Ki >= 0. && params_.Kd >= 0.)))    // All 3 gains should have the same sign
-    {
+    const bool all_negative = (params_.Kp <= 0. && params_.Ki <= 0. && params_.Kd <= 0.);
+    const bool all_positive = (params_.Kp >= 0. && params_.Ki >= 0. && params_.Kd >= 0.);
+    if (all_negative || all_positive) {  // All 3 gains should have the same sign
       Kp_ = params_.Kp;
       Ki_ = params_.Ki;
       Kd_ = params_.Kd;
@@ -138,7 +140,7 @@ void PID::update()
     }
 
     // calculate delta_t
-    if (prev_time_.nanoseconds() != 0) { // Not first time through the program
+    if (prev_time_.nanoseconds() != 0) {  // Not first time through the program
       delta_t_ = this->now() - prev_time_;
       prev_time_ = this->now();
       if (0 == delta_t_.nanoseconds()) {
@@ -226,3 +228,5 @@ void PID::update()
 
   new_state_or_setpt_ = false;
 }
+
+}  // namespace pid_controller

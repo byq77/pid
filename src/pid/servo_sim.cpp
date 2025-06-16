@@ -81,7 +81,8 @@ public:
     prev_time_ = this->now();
 
     decel_force_ = -(speed_ * friction_);  // can be +ve or -ve. Linear with speed
-    acceleration_ = ((Kv_ * (control_effort_ - (Kbackemf_ * speed_)) + decel_force_) / mass_);  // a = F/m
+    acceleration_ =  // a = F/m
+      ((Kv_ * (control_effort_ - (Kbackemf_ * speed_)) + decel_force_) / mass_);
     speed_ = speed_ + (acceleration_ * delta_t_.nanoseconds() / 1e9);
     displacement_ = displacement_ + speed_ * delta_t_.nanoseconds() / 1e9;
     state_msg_.data = displacement_;
